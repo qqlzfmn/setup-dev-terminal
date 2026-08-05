@@ -32,7 +32,30 @@ optionally auto-starts zellij inside Ghostty.
 bash setup-dev-terminal.sh
 ```
 
-That's it. Open Ghostty and you're inside zellij.
+An **interactive checkbox menu** lets you pick which components to install
+(space to toggle, `j/k` or arrows to move, enter to confirm):
+
+```text
+安装项 (j/k或↑↓移动 · 空格勾选 · 回车确认 · q退出)
+────────────────────────────────────────
+▶ [x] Ghostty 终端 (GPU 渲染)
+  [x] zellij 终端复用 (多窗口/pane)
+  [x] JetBrainsMono Nerd Font (图标字体)
+  [x] zsh 栈: zsh + oh-my-zsh + 插件
+  [x] uv Python 包管理器
+  [x] bun JS 运行时/包管理器
+  [x] oh-my-pi (omp) 开发助手
+  [x] nvm + Node 24
+────────────────────────────────────────
+```
+
+Pure bash + ANSI, **zero dependencies**, compatible with bash 3.2 (macOS system shell).
+
+For non-interactive / CI usage, keep the env-var defaults:
+
+```bash
+SKIP_INTERACTIVE=1 bash setup-dev-terminal.sh
+```
 
 ## 🔁 Idempotent & safe
 
@@ -58,6 +81,7 @@ Override via environment variables:
 | `ZSH_THEME_NAME` | `ys` | oh-my-zsh theme to set in `~/.zshrc` |
 | `ZSH_PLUGINS` | `git z zsh-syntax-highlighting zsh-autosuggestions` | Plugins to clone & enable |
 | `INSTALL_DEVTOOLS` | `1` | Set `0` to skip all dev tools below |
+| `INSTALL_GHOSTTY` / `INSTALL_ZELLIJ` / `INSTALL_FONT` / `INSTALL_ZSH` | `1` | Toggle each component (also honored as interactive defaults) |
 | `INSTALL_UV` / `INSTALL_BUN` / `INSTALL_OMP` / `INSTALL_NVM` | `1` | Disable individually with `0` |
 | `NODE_VERSION` | `24` | Node version to install via nvm |
 | `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |

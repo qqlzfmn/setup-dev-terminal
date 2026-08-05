@@ -5,11 +5,13 @@
 # 安装: Ghostty + zellij + JetBrainsMono Nerd Font + zsh 栈 + 开发工具(uv/bun/oh-my-pi/nvm+node)
 # 配置: Ghostty 字体/主题 + zellij 主题 + zshrc(zellij 自动启动 + oh-my-zsh 主题/插件)
 #
-# 用法:   bash setup-dev-terminal.sh
+# 用法:   bash setup-dev-terminal.sh           # 交互式: 复选框选择要安装的组件
+#         SKIP_INTERACTIVE=1 bash ...            # 跳过交互, 用环境变量配置
 # 幂等:   可重复运行, 已装的跳过, 配置相同不覆盖, zshrc 不重复追加
-# 环境变量可覆盖:
+# 环境变量可覆盖 (非交互模式或作为默认值):
 #   GHOSTTY_THEME=Dracula  ZELLIJ_THEME=dracula  FONT_FAMILY="JetBrainsMono Nerd Font Mono"
 #   FONT_SIZE=14  ZELLIJ_AUTOSTART=1 (0 表示不自动启动)
+#   INSTALL_GHOSTTY/INSTALL_ZELLIJ/INSTALL_FONT/INSTALL_ZSH=1 (0 跳过对应组件)
 #   INSTALL_ZSH=1 (0 跳过 zsh 栈)  ZSH_THEME_NAME=ys  ZSH_PLUGINS="git z zsh-syntax-highlighting zsh-autosuggestions"
 #   INSTALL_DEVTOOLS=1 (0 跳过 uv/bun/oh-my-pi/nvm)  单项可用 INSTALL_UV/INSTALL_BUN/INSTALL_OMP/INSTALL_NVM=0 关闭
 #   NODE_VERSION=24 (nvm 安装的 node 版本)  NVM_NODEJS_ORG_MIRROR= (可选: 国内镜像加速, 如 https://npmmirror.com/mirrors/node/)
@@ -23,6 +25,9 @@ FONT_FAMILY="${FONT_FAMILY:-JetBrainsMono Nerd Font Mono}"
 FONT_SIZE="${FONT_SIZE:-14}"
 ZELLIJ_AUTOSTART="${ZELLIJ_AUTOSTART:-1}"
 INSTALL_ZSH="${INSTALL_ZSH:-1}"              # 1=安装 zsh 栈(zsh/oh-my-zsh/插件), 0=跳过
+INSTALL_GHOSTTY="${INSTALL_GHOSTTY:-1}"      # 1=安装 Ghostty
+INSTALL_ZELLIJ="${INSTALL_ZELLIJ:-1}"        # 1=安装 zellij
+INSTALL_FONT="${INSTALL_FONT:-1}"            # 1=安装 JetBrainsMono Nerd Font
 ZSH_THEME_NAME="${ZSH_THEME_NAME:-ys}"
 ZSH_PLUGINS="${ZSH_PLUGINS:-git z zsh-syntax-highlighting zsh-autosuggestions}"
 
@@ -54,6 +59,113 @@ BREW="$(command -v brew || true)"
 [[ -n "$BREW" ]] || die "未找到 Homebrew, 请先安装: https://brew.sh"
 BREW_BIN="$(dirname "$BREW")"
 
+# ---------- 交互式复选框选择 (仅 TTY; SKIP_INTERACTIVE=1 或管道输入时跳过) ----------
+# 纯 bash + ANSI 转义实现, 零依赖, 兼容 bash 3.2 (macOS 系统自带)
+MENU_OPTIONS=()
+MENU_INIT=()
+MENU_SEL=()
+MENU_CUR=0
+MENU_RESULT=()
+C_RESET='\033[0m'; C_GREEN='\033[32m'; C_CYAN='\033[36m'; C_BOLD='\033[1m'; C_DIM='\033[2m'
+
+menu_cleanup() { printf '\033[?25h\033[0m'; stty echo icanon 2>/dev/null; }
+
+trap menu_cleanup EXIT INT TERM
+
+menu_is_sel() { local i; for i in ${MENU_SEL[@]+"${MENU_SEL[@]}"}; do [[ "$i" == "$1" ]] && return 0; done; return 1; }
+
+menu_draw() {
+  printf '\033[H'
+  printf "${C_BOLD}${C_CYAN}安装项 (j/k或↑↓移动 · 空格勾选 · 回车确认 · q退出)${C_RESET}\n"
+  printf "${C_DIM}────────────────────────────────────────${C_RESET}\n"
+  for i in "${!MENU_OPTIONS[@]}"; do
+    local desc="${MENU_OPTIONS[$i]#*|}" mark=" "
+    menu_is_sel "$i" && mark="x"
+    if [[ $i -eq $MENU_CUR ]]; then
+      printf "${C_GREEN}▶ [%s] %s${C_RESET}\n" "$mark" "$desc"
+    else
+      printf "  [%s] %s\n" "$mark" "$desc"
+    fi
+  done
+  printf "${C_DIM}────────────────────────────────────────${C_RESET}\n"
+}
+
+checkbox_menu() {
+  MENU_CUR=0
+  MENU_SEL=()
+  local i key rest
+  for i in ${MENU_INIT[@]+"${MENU_INIT[@]}"}; do menu_is_sel "$i" || MENU_SEL+=("$i"); done
+  printf '\033[2J\033[?25l'
+  while true; do
+    menu_draw
+    IFS= read -rsn1 key || true
+    case "$key" in
+      $'\x1b')
+        read -rsn2 -t 1 rest || true   # bash 3.2 仅支持整数超时; 方向键序列瞬间到达, 无感
+        case "$rest" in
+          '[A') ((MENU_CUR > 0)) && ((MENU_CUR--)) ;;
+          '[B') ((MENU_CUR < ${#MENU_OPTIONS[@]}-1)) && ((MENU_CUR++)) ;;
+        esac
+        ;;
+      'j'|'J') ((MENU_CUR < ${#MENU_OPTIONS[@]}-1)) && ((MENU_CUR++)) ;;
+      'k'|'K') ((MENU_CUR > 0)) && ((MENU_CUR--)) ;;
+      ' ')  # 空格: 切换勾选
+        if menu_is_sel "$MENU_CUR"; then
+          local -a tmp=()
+          for i in ${MENU_SEL[@]+"${MENU_SEL[@]}"}; do [[ "$i" != "$MENU_CUR" ]] && tmp+=("$i"); done
+          MENU_SEL=("${tmp[@]}")
+        else
+          MENU_SEL+=("$MENU_CUR")
+        fi
+        ;;
+      $'\n'|'') break ;;
+      'q'|'Q') printf '\033[?25h\n'; exit 1 ;;
+    esac
+  done
+  MENU_RESULT=(${MENU_SEL[@]+"${MENU_SEL[@]}"})
+  printf '\033[?25h\n'
+}
+
+run_interactive() {
+  MENU_OPTIONS=(
+    "ghostty|Ghostty 终端 (GPU 渲染)"
+    "zellij|zellij 终端复用 (多窗口/pane)"
+    "font|JetBrainsMono Nerd Font (图标字体)"
+    "zsh|zsh 栈: zsh + oh-my-zsh + 插件"
+    "uv|uv Python 包管理器"
+    "bun|bun JS 运行时/包管理器"
+    "omp|oh-my-pi (omp) 开发助手"
+    "nvm|nvm + Node $NODE_VERSION"
+  )
+  MENU_INIT=()
+  local i id
+  for i in "${!MENU_OPTIONS[@]}"; do MENU_INIT+=("$i"); done
+  checkbox_menu
+  # 勾选结果覆盖安装开关 (全默认关, 勾选的开启)
+  INSTALL_GHOSTTY=0; INSTALL_ZELLIJ=0; INSTALL_FONT=0
+  INSTALL_ZSH=0; INSTALL_UV=0; INSTALL_BUN=0; INSTALL_OMP=0; INSTALL_NVM=0
+  for i in ${MENU_RESULT[@]+"${MENU_RESULT[@]}"}; do
+    id="${MENU_OPTIONS[$i]%%|*}"
+    case "$id" in
+      ghostty) INSTALL_GHOSTTY=1 ;;
+      zellij)  INSTALL_ZELLIJ=1 ;;
+      font)    INSTALL_FONT=1 ;;
+      zsh)     INSTALL_ZSH=1 ;;
+      uv)      INSTALL_UV=1 ;;
+      bun)     INSTALL_BUN=1 ;;
+      omp)     INSTALL_OMP=1 ;;
+      nvm)     INSTALL_NVM=1 ;;
+    esac
+  done
+  echo
+}
+
+if [[ -t 0 ]] && [[ "${SKIP_INTERACTIVE:-0}" != "1" ]]; then
+  run_interactive
+else
+  info "非交互模式: 使用环境变量配置 (交互模式: 直接运行 bash setup-dev-terminal.sh)"
+fi
+
 # ---------- 1. 安装软件 ----------
 install_formula() { # brew formula (zellij)
   local name="$1"
@@ -83,9 +195,9 @@ install_cask() { # brew cask (ghostty / 字体)
   fi
 }
 
-install_cask ghostty
-install_formula zellij
-install_cask font-jetbrains-mono-nerd-font
+[[ "$INSTALL_GHOSTTY" == "1" ]] && install_cask ghostty
+[[ "$INSTALL_ZELLIJ" == "1" ]] && install_formula zellij
+[[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
 
 # ---------- 1.5 zsh 栈 (zsh + oh-my-zsh + 插件) ----------
 # 依据: https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH
@@ -286,6 +398,7 @@ write_if_changed() {
   fi
 }
 
+if [[ "$INSTALL_GHOSTTY" == "1" ]]; then
 write_if_changed "$GHOSTTY_CONFIG" "$(cat <<EOF
 # ============ Ghostty Config ============
 font-family = "$FONT_FAMILY"
@@ -308,7 +421,9 @@ copy-on-select = true
 shell-integration = "zsh"
 EOF
 )"
+fi
 
+if [[ "$INSTALL_ZELLIJ" == "1" ]]; then
 write_if_changed "$ZELLIJ_CONFIG" "$(cat <<EOF
 // ============ Zellij Config ============
 theme "$ZELLIJ_THEME"
@@ -318,8 +433,10 @@ mouse_mode true
 pane_frames true
 EOF
 )"
+fi
 
 # ---------- 4. zshrc 追加 zellij 自动启动 (幂等) ----------
+if [[ "$INSTALL_ZELLIJ" == "1" && "$ZELLIJ_AUTOSTART" == "1" ]]; then
 ZSHRC_BLOCK=$(cat <<'EOF'
 # ---- zellij autostart (setup-dev-terminal.sh) ----
 export ZELLIJ_AUTOSTART=1
@@ -335,12 +452,15 @@ else
   printf '\n%s\n' "$ZSHRC_BLOCK" >> "$ZSHRC"
   info "已追加 zellij autostart 到 $ZSHRC"
 fi
+fi
 
 # ---------- 5. 验证 ----------
-if "$BREW_BIN/ghostty" +validate-config >/dev/null 2>&1; then
-  info "Ghostty 配置校验通过"
-else
-  warn "Ghostty 配置校验失败, 请手动检查 $GHOSTTY_CONFIG"
+if [[ "$INSTALL_GHOSTTY" == "1" ]]; then
+  if "$BREW_BIN/ghostty" +validate-config >/dev/null 2>&1; then
+    info "Ghostty 配置校验通过"
+  else
+    warn "Ghostty 配置校验失败, 请手动检查 $GHOSTTY_CONFIG"
+  fi
 fi
 
 echo
