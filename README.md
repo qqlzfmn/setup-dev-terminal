@@ -4,7 +4,8 @@
 
 A single idempotent shell script that installs and configures a modern terminal
 environment tuned for AI coding agents (Claude Code, Codex CLI, Gemini CLI,
-OpenCode, pi, …) — GPU-rendered terminal, multiplexer, and a complete Nerd Font.
+OpenCode, pi, …) — GPU-rendered terminal, multiplexer, a complete Nerd Font,
+and a full zsh stack (zsh + oh-my-zsh + plugins).
 
 ## ✨ What it installs
 
@@ -13,9 +14,13 @@ OpenCode, pi, …) — GPU-rendered terminal, multiplexer, and a complete Nerd F
 | [Ghostty](https://ghostty.org) | Fast GPU-rendered terminal, the 2025 community favorite |
 | [zellij](https://zellij.dev) | Terminal multiplexer with a friendly UI (tmux alternative) |
 | JetBrainsMono Nerd Font | Full-weight monospace font with 3,000+ icons |
+| [zsh](https://zsh.org) | Latest zsh via Homebrew |
+| [oh-my-zsh](https://ohmyz.sh) | Popular zsh framework (non-interactive install) |
+| zsh-syntax-highlighting / zsh-autosuggestions | Essential zsh plugins, auto-enabled in `.zshrc` |
 
 It also links the Ghostty CLI, writes sane configs (Dracula theme, font, padding,
-scrollback), and optionally auto-starts zellij inside Ghostty.
+scrollback), sets `ZSH_THEME` + `plugins=()` in `~/.zshrc` (with backup), and
+optionally auto-starts zellij inside Ghostty.
 
 ## 🚀 Usage
 
@@ -45,6 +50,9 @@ Override via environment variables:
 | `FONT_FAMILY` | `JetBrainsMono Nerd Font Mono` | Terminal font family |
 | `FONT_SIZE` | `14` | Terminal font size |
 | `ZELLIJ_AUTOSTART` | `1` | Set `0` to disable auto-starting zellij |
+| `INSTALL_ZSH` | `1` | Set `0` to skip the zsh stack (zsh / oh-my-zsh / plugins) |
+| `ZSH_THEME_NAME` | `ys` | oh-my-zsh theme to set in `~/.zshrc` |
+| `ZSH_PLUGINS` | `git z zsh-syntax-highlighting zsh-autosuggestions` | Plugins to clone & enable |
 
 Example:
 
@@ -62,6 +70,9 @@ FONT_SIZE=13 ZELLIJ_THEME=catppuccin-mocha bash setup-dev-terminal.sh
 | `Ctrl+o` then `x` | Exit zellij |
 
 To stop the auto-start: set `ZELLIJ_AUTOSTART=0` in `~/.zshrc`.
+
+zsh plugins take effect in new terminals. If your login shell is still the
+system zsh, switch it with `chsh -s $(which zsh)`.
 
 ## 🧰 Requirements
 
