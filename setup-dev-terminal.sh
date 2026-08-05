@@ -2,7 +2,7 @@
 # ============================================================
 # 开发终端一键安装脚本 (macOS + Homebrew)
 #
-# 安装: Ghostty + zellij + JetBrainsMono Nerd Font + zsh 栈(zsh + oh-my-zsh + 插件)
+# 安装: Ghostty + zellij + JetBrainsMono Nerd Font + zsh 栈 + 开发工具(uv/bun/oh-my-pi/nvm+node)
 # 配置: Ghostty 字体/主题 + zellij 主题 + zshrc(zellij 自动启动 + oh-my-zsh 主题/插件)
 #
 # 用法:   bash setup-dev-terminal.sh
@@ -11,6 +11,8 @@
 #   GHOSTTY_THEME=Dracula  ZELLIJ_THEME=dracula  FONT_FAMILY="JetBrainsMono Nerd Font Mono"
 #   FONT_SIZE=14  ZELLIJ_AUTOSTART=1 (0 表示不自动启动)
 #   INSTALL_ZSH=1 (0 跳过 zsh 栈)  ZSH_THEME_NAME=ys  ZSH_PLUGINS="git z zsh-syntax-highlighting zsh-autosuggestions"
+#   INSTALL_DEVTOOLS=1 (0 跳过 uv/bun/oh-my-pi/nvm)  单项可用 INSTALL_UV/INSTALL_BUN/INSTALL_OMP/INSTALL_NVM=0 关闭
+#   NODE_VERSION=24 (nvm 安装的 node 版本)  NVM_NODEJS_ORG_MIRROR= (可选: 国内镜像加速, 如 https://npmmirror.com/mirrors/node/)
 # ============================================================
 set -euo pipefail
 
@@ -23,6 +25,16 @@ ZELLIJ_AUTOSTART="${ZELLIJ_AUTOSTART:-1}"
 INSTALL_ZSH="${INSTALL_ZSH:-1}"              # 1=安装 zsh 栈(zsh/oh-my-zsh/插件), 0=跳过
 ZSH_THEME_NAME="${ZSH_THEME_NAME:-ys}"
 ZSH_PLUGINS="${ZSH_PLUGINS:-git z zsh-syntax-highlighting zsh-autosuggestions}"
+
+# ---- 开发工具 (uv / bun / oh-my-pi(omp) / nvm+node) ----
+INSTALL_DEVTOOLS="${INSTALL_DEVTOOLS:-1}"       # 总开关
+INSTALL_UV="${INSTALL_UV:-1}"
+INSTALL_BUN="${INSTALL_BUN:-1}"
+INSTALL_OMP="${INSTALL_OMP:-1}"                  # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp)
+INSTALL_NVM="${INSTALL_NVM:-1}"
+NODE_VERSION="${NODE_VERSION:-24}"
+NVM_NODEJS_ORG_MIRROR="${NVM_NODEJS_ORG_MIRROR:-}"
+[[ -n "$NVM_NODEJS_ORG_MIRROR" ]] && export NVM_NODEJS_ORG_MIRROR
 
 # ---------- 路径 ----------
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -164,6 +176,85 @@ if [[ "$INSTALL_ZSH" == "1" ]]; then
   install_zsh_stack
 fi
 
+# ---------- 1.6 开发工具 (uv / bun / oh-my-pi(omp) / nvm+node) ----------
+install_devtools() {
+  # uv (Python 包管理器)
+  if [[ "$INSTALL_UV" == "1" ]]; then
+    if command -v uv >/dev/null 2>&1; then
+      info "uv 已安装 ($(uv --version 2>/dev/null | head -1))"
+    else
+      warn "安装 uv ..."
+      if curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1; then
+        info "uv 安装完成"
+      else
+        warn "uv 安装失败, 请手动运行: curl -LsSf https://astral.sh/uv/install.sh | sh"
+      fi
+    fi
+  fi
+
+  # bun (JS 运行时/包管理器)
+  if [[ "$INSTALL_BUN" == "1" ]]; then
+    if command -v bun >/dev/null 2>&1 || [[ -x "$HOME/.bun/bin/bun" ]]; then
+      local bver
+      bver=$("$HOME/.bun/bin/bun" --version 2>/dev/null || bun --version 2>/dev/null)
+      info "bun 已安装 ($bver)"
+    else
+      warn "安装 bun ..."
+      if curl -fsSL https://bun.com/install | bash >/dev/null 2>&1; then
+        info "bun 安装完成"
+      else
+        warn "bun 安装失败, 请手动运行: curl -fsSL https://bun.com/install | bash"
+      fi
+    fi
+  fi
+
+  # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp)
+  if [[ "$INSTALL_OMP" == "1" ]]; then
+    if command -v omp >/dev/null 2>&1 || [[ -x "$HOME/.bun/bin/omp" ]]; then
+      info "oh-my-pi (omp) 已安装"
+    else
+      warn "安装 oh-my-pi (omp) ..."
+      if curl -fsSL https://omp.sh/install | sh >/dev/null 2>&1; then
+        info "oh-my-pi (omp) 安装完成, 运行 omp 开始使用"
+      else
+        warn "oh-my-pi (omp) 安装失败, 请手动运行: curl -fsSL https://omp.sh/install | sh"
+      fi
+    fi
+  fi
+
+  # nvm + node (nvm 是 shell 函数, 需 source 后调用)
+  if [[ "$INSTALL_NVM" == "1" ]]; then
+    if [[ ! -d "$HOME/.nvm" ]]; then
+      warn "安装 nvm ..."
+      if curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash >/dev/null 2>&1; then
+        info "nvm 安装完成"
+      else
+        warn "nvm 安装失败, 请手动运行: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash"
+      fi
+    else
+      info "nvm 已安装, 跳过"
+    fi
+
+    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+      . "$HOME/.nvm/nvm.sh"
+      if ls "$HOME/.nvm/versions/node/" 2>/dev/null | grep -q "^v$NODE_VERSION\."; then
+        info "node $NODE_VERSION 已安装, 跳过"
+      else
+        warn "nvm install $NODE_VERSION ..."
+        if nvm install "$NODE_VERSION" >/dev/null 2>&1; then
+          info "node $NODE_VERSION 安装完成 (新终端中执行 nvm use $NODE_VERSION 生效)"
+        else
+          warn "node $NODE_VERSION 安装失败, 请手动运行: nvm install $NODE_VERSION"
+        fi
+      fi
+    fi
+  fi
+}
+
+if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then
+  install_devtools
+fi
+
 # ---------- 2. ghostty CLI 链接到 brew bin ----------
 GHOSTTY_APP="/Applications/Ghostty.app/Contents/MacOS/ghostty"
 if [[ -x "$GHOSTTY_APP" ]]; then
@@ -257,3 +348,4 @@ info "全部完成! 打开 Ghostty 即自动进入 zellij (Spotlight 搜 Ghostty
 info "退出 zellij: Ctrl+o 然后 d(分离)/x(退出)"
 info "关闭自动启动: 改 $ZSHRC 中 ZELLIJ_AUTOSTART=0"
 info "zsh 插件需新开终端生效; 若默认 shell 仍是旧 zsh, 可运行: chsh -s \$(which zsh)"
+info "nvm 环境在新终端生效 (nvm use $NODE_VERSION); oh-my-pi (omp) 运行 omp 开始使用"

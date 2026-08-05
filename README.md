@@ -17,6 +17,10 @@ and a full zsh stack (zsh + oh-my-zsh + plugins).
 | [zsh](https://zsh.org) | Latest zsh via Homebrew |
 | [oh-my-zsh](https://ohmyz.sh) | Popular zsh framework (non-interactive install) |
 | zsh-syntax-highlighting / zsh-autosuggestions | Essential zsh plugins, auto-enabled in `.zshrc` |
+| [uv](https://docs.astral.sh/uv/) | Fast Python package manager |
+| [bun](https://bun.com) | All-in-one JS runtime & package manager |
+| oh-my-pi (`omp`) | `@oh-my-pi/pi-coding-agent`, installed via `omp.sh` |
+| [nvm](https://github.com/nvm-sh/nvm) + Node.js | Node version manager + Node `24` (with npm) |
 
 It also links the Ghostty CLI, writes sane configs (Dracula theme, font, padding,
 scrollback), sets `ZSH_THEME` + `plugins=()` in `~/.zshrc` (with backup), and
@@ -53,6 +57,10 @@ Override via environment variables:
 | `INSTALL_ZSH` | `1` | Set `0` to skip the zsh stack (zsh / oh-my-zsh / plugins) |
 | `ZSH_THEME_NAME` | `ys` | oh-my-zsh theme to set in `~/.zshrc` |
 | `ZSH_PLUGINS` | `git z zsh-syntax-highlighting zsh-autosuggestions` | Plugins to clone & enable |
+| `INSTALL_DEVTOOLS` | `1` | Set `0` to skip all dev tools below |
+| `INSTALL_UV` / `INSTALL_BUN` / `INSTALL_OMP` / `INSTALL_NVM` | `1` | Disable individually with `0` |
+| `NODE_VERSION` | `24` | Node version to install via nvm |
+| `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |
 
 Example:
 
@@ -73,6 +81,9 @@ To stop the auto-start: set `ZELLIJ_AUTOSTART=0` in `~/.zshrc`.
 
 zsh plugins take effect in new terminals. If your login shell is still the
 system zsh, switch it with `chsh -s $(which zsh)`.
+
+nvm and Node take effect in new terminals (`nvm use 24`).
+Run `omp` to start oh-my-pi.
 
 ## 🧰 Requirements
 
