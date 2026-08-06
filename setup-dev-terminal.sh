@@ -381,9 +381,37 @@ install_devtools_base() { # uv/bun (运行时/包管理器)
       fi
     fi
   fi
+
+  # nvm + node (nvm 是 shell 函数, 需 source 后调用; npm 是很多包安装的前置)
+  if [[ "$INSTALL_NVM" == "1" ]]; then
+    if [[ ! -d "$HOME/.nvm" ]]; then
+      warn "安装 nvm ..."
+      if curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash >/dev/null 2>&1; then
+        info "nvm 安装完成"
+      else
+        warn "nvm 安装失败, 请手动运行: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash"
+      fi
+    else
+      info "nvm 已安装, 跳过"
+    fi
+
+    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+      . "$HOME/.nvm/nvm.sh"
+      if ls "$HOME/.nvm/versions/node/" 2>/dev/null | grep -q "^v$NODE_VERSION\."; then
+        info "node $NODE_VERSION 已安装, 跳过"
+      else
+        warn "nvm install $NODE_VERSION ..."
+        if nvm install "$NODE_VERSION" >/dev/null 2>&1; then
+          info "node $NODE_VERSION 安装完成 (新终端中执行 nvm use $NODE_VERSION 生效)"
+        else
+          warn "node $NODE_VERSION 安装失败, 请手动运行: nvm install $NODE_VERSION"
+        fi
+      fi
+    fi
+  fi
 }
 
-install_devtools_apps() { # omp/nvm (上层工具, 依赖 bun/curl)
+install_devtools_apps() { # omp (上层工具, 依赖 bun)
   # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp) — 要求 bun >= 1.3.14
   if [[ "$INSTALL_OMP" == "1" ]]; then
     # bun 版本检查: 过低则自动升级 (brew 版用 brew upgrade, 独立安装用 bun upgrade)
@@ -418,39 +446,11 @@ install_devtools_apps() { # omp/nvm (上层工具, 依赖 bun/curl)
       fi
     fi
   fi
-
-  # nvm + node (nvm 是 shell 函数, 需 source 后调用)
-  if [[ "$INSTALL_NVM" == "1" ]]; then
-    if [[ ! -d "$HOME/.nvm" ]]; then
-      warn "安装 nvm ..."
-      if curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash >/dev/null 2>&1; then
-        info "nvm 安装完成"
-      else
-        warn "nvm 安装失败, 请手动运行: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash"
-      fi
-    else
-      info "nvm 已安装, 跳过"
-    fi
-
-    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-      . "$HOME/.nvm/nvm.sh"
-      if ls "$HOME/.nvm/versions/node/" 2>/dev/null | grep -q "^v$NODE_VERSION\."; then
-        info "node $NODE_VERSION 已安装, 跳过"
-      else
-        warn "nvm install $NODE_VERSION ..."
-        if nvm install "$NODE_VERSION" >/dev/null 2>&1; then
-          info "node $NODE_VERSION 安装完成 (新终端中执行 nvm use $NODE_VERSION 生效)"
-        else
-          warn "node $NODE_VERSION 安装失败, 请手动运行: nvm install $NODE_VERSION"
-        fi
-      fi
-    fi
-  fi
 }
 
 # ========== 执行: 按依赖顺序安装 ==========
 # 1.5 基础工具 (curl/git/zsh) 已在上方执行
-# 1.7 运行时/包管理器 (uv/bun)
+# 1.7 运行时/包管理器 (uv/bun/nvm — npm 是包安装前置)
 if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then
   install_devtools_base
 fi
@@ -465,7 +465,7 @@ fi
 [[ "$INSTALL_ZELLIJ" == "1" ]] && install_formula zellij
 [[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
 
-# 上层工具 (omp 依赖 bun, nvm 依赖 curl)
+# 上层工具 (omp 依赖 bun)
 if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then
   install_devtools_apps
 fi
