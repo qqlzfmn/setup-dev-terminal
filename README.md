@@ -78,6 +78,9 @@ SKIP_INTERACTIVE=1 bash setup-dev-terminal.sh
 Runs are **idempotent** — safe to re-run any time:
 
 - Already-installed packages are skipped
+- System-provided tools (`/bin/zsh`, `/usr/bin/curl`, `/usr/bin/git`) are detected
+  via `command -v` and skipped — no needless Homebrew reinstall
+  (override with `FORCE_BREW_TOOLS=1`)
 - Config files are only written when content differs
 - Old configs are backed up as `*.bak.<timestamp>` before being overwritten
 - The zshrc auto-start block is never appended twice
@@ -101,6 +104,7 @@ Override via environment variables:
 | `INSTALL_UV` / `INSTALL_BUN` / `INSTALL_OMP` / `INSTALL_NVM` | `1` | Disable individually with `0` |
 | `NODE_VERSION` | `24` | Node version to install via nvm |
 | `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |
+| `FORCE_BREW_TOOLS` | `0` | Set `1` to force Homebrew install of zsh/curl/git (default: skip if system-provided) |
 
 Example:
 

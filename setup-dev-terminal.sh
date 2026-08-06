@@ -40,6 +40,7 @@ INSTALL_NVM="${INSTALL_NVM:-1}"
 NODE_VERSION="${NODE_VERSION:-24}"
 NVM_NODEJS_ORG_MIRROR="${NVM_NODEJS_ORG_MIRROR:-}"
 [[ -n "$NVM_NODEJS_ORG_MIRROR" ]] && export NVM_NODEJS_ORG_MIRROR
+FORCE_BREW_TOOLS="${FORCE_BREW_TOOLS:-0}"  # 1=强制用 brew 安装 zsh/curl/git (默认系统自带则跳过)
 
 # ---------- 路径 ----------
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -181,6 +182,26 @@ install_formula() { # brew formula (zellij)
   fi
 }
 
+install_util() { # 系统自带工具 (zsh/curl/git): 命令已存在即跳过, 避免无谓覆盖系统版本
+  # macOS 自带 /bin/zsh /usr/bin/curl /usr/bin/git, 新机器无需重复安装 brew 版
+  # FORCE_BREW_TOOLS=1 可强制安装 brew 版
+  local name="$1"
+  if [[ "${FORCE_BREW_TOOLS:-0}" == "1" ]]; then
+    install_formula "$name"
+  elif command -v "$name" >/dev/null 2>&1; then
+    info "$name 已存在 ($(command -v "$name")), 跳过 brew 安装"
+  elif brew list --versions "$name" >/dev/null 2>&1; then
+    info "$name 已安装 (brew)"
+  else
+    warn "安装 $name ..."
+    if brew install "$name" >/dev/null 2>&1; then
+      info "$name 安装完成"
+    else
+      warn "$name 安装失败, 请手动运行: brew install $name"
+    fi
+  fi
+}
+
 install_cask() { # brew cask (ghostty / 字体)
   local name="$1"
   if brew list --cask --versions "$name" >/dev/null 2>&1; then
@@ -202,9 +223,9 @@ install_cask() { # brew cask (ghostty / 字体)
 # ---------- 1.5 zsh 栈 (zsh + oh-my-zsh + 插件) ----------
 # 依据: https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH
 install_zsh_stack() {
-  install_formula zsh
-  install_formula curl
-  install_formula git
+  install_util zsh
+  install_util curl
+  install_util git
 
   # oh-my-zsh (--unattended: 非交互, 不修改默认 shell)
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
