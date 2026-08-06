@@ -79,7 +79,7 @@ Runs are **idempotent** — safe to re-run any time:
 
 - Already-installed packages are skipped
 - System-provided tools (`/bin/zsh`, `/usr/bin/curl`, `/usr/bin/git`) are detected
-  via `command -v` and skipped — no needless Homebrew reinstall
+  via `command -v` / `which` and skipped — no needless Homebrew reinstall
   (override with `FORCE_BREW_TOOLS=1`)
 - Config files are only written when content differs
 - Old configs are backed up as `*.bak.<timestamp>` before being overwritten

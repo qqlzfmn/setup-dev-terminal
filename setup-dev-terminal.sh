@@ -184,12 +184,21 @@ install_formula() { # brew formula (zellij)
 
 install_util() { # 系统自带工具 (zsh/curl/git): 命令已存在即跳过, 避免无谓覆盖系统版本
   # macOS 自带 /bin/zsh /usr/bin/curl /usr/bin/git, 新机器无需重复安装 brew 版
+  # 检测: command -v (POSIX 内建, 不 fork 外部进程) 优先; which (通用, 输出路径) 兜底
+  # 两者都返回实际路径, 如 /usr/bin/curl
   # FORCE_BREW_TOOLS=1 可强制安装 brew 版
-  local name="$1"
+  local name="$1" found=""
   if [[ "${FORCE_BREW_TOOLS:-0}" == "1" ]]; then
     install_formula "$name"
-  elif command -v "$name" >/dev/null 2>&1; then
-    info "$name 已存在 ($(command -v "$name")), 跳过 brew 安装"
+    return
+  fi
+  if command -v "$name" >/dev/null 2>&1; then
+    found="$(command -v "$name" 2>/dev/null)"
+  elif which "$name" >/dev/null 2>&1; then
+    found="$(which "$name" 2>/dev/null)"
+  fi
+  if [[ -n "$found" ]]; then
+    info "$name 已存在 ($found), 跳过 brew 安装"
   elif brew list --versions "$name" >/dev/null 2>&1; then
     info "$name 已安装 (brew)"
   else
