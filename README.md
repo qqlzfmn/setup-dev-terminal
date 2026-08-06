@@ -105,6 +105,7 @@ Override via environment variables:
 | `NODE_VERSION` | `24` | Node version to install via nvm |
 | `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |
 | `FORCE_BREW_TOOLS` | `0` | Set `1` to force Homebrew install of zsh/curl/git (default: skip if system-provided) |
+| `INSTALL_BREW` | `1` | Auto-install Homebrew if missing; set `0` to fail with a hint instead |
 
 Example:
 
@@ -131,8 +132,9 @@ Run `omp` to start oh-my-pi.
 
 ## 🧰 Requirements
 
-- macOS
-- [Homebrew](https://brew.sh)
+- macOS (Apple Silicon or Intel)
+- [Homebrew](https://brew.sh) — **auto-installed** by the script if missing
+  (official installer, may prompt for sudo; disable with `INSTALL_BREW=0`)
 
 ## 📄 License
 

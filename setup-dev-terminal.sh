@@ -41,6 +41,7 @@ NODE_VERSION="${NODE_VERSION:-24}"
 NVM_NODEJS_ORG_MIRROR="${NVM_NODEJS_ORG_MIRROR:-}"
 [[ -n "$NVM_NODEJS_ORG_MIRROR" ]] && export NVM_NODEJS_ORG_MIRROR
 FORCE_BREW_TOOLS="${FORCE_BREW_TOOLS:-0}"  # 1=强制用 brew 安装 zsh/curl/git (默认系统自带则跳过)
+INSTALL_BREW="${INSTALL_BREW:-1}"          # 1=未检测到 brew 时自动安装官方脚本, 0=直接报错
 
 # ---------- 路径 ----------
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -57,7 +58,29 @@ die()  { printf "${YELLOW}[✗]${NC} %s\n" "$*"; exit 1; }
 # ---------- 前置检查 ----------
 [[ "$(uname -s)" == "Darwin" ]] || die "仅支持 macOS"
 BREW="$(command -v brew || true)"
-[[ -n "$BREW" ]] || die "未找到 Homebrew, 请先安装: https://brew.sh"
+if [[ -z "$BREW" ]]; then
+  if [[ "$INSTALL_BREW" != "1" ]]; then
+    die "未找到 Homebrew, 请先安装: https://brew.sh (或设 INSTALL_BREW=1 自动安装)"
+  fi
+  warn "未检测到 Homebrew, 正在自动安装 (官方脚本, 可能需 sudo 密码) ..."
+  if [[ ! -t 0 ]] || [[ "${SKIP_INTERACTIVE:-0}" == "1" ]]; then
+    warn "非交互模式: 自动跳过确认 (NONINTERACTIVE=1), 但 sudo 仍需可用"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+      || die "Homebrew 安装失败, 请手动运行官方命令: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+  else
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+      || die "Homebrew 安装失败, 请手动运行官方命令: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+  fi
+  # 安装后定位 brew (Apple Silicon: /opt/homebrew; Intel: /usr/local)
+  if [[ -x /opt/homebrew/bin/brew ]]; then
+    BREW=/opt/homebrew/bin/brew
+  elif [[ -x /usr/local/bin/brew ]]; then
+    BREW=/usr/local/bin/brew
+  else
+    die "brew 安装后未找到, 请手动运行官方安装命令"
+  fi
+  info "Homebrew 安装完成 ($BREW)"
+fi
 BREW_BIN="$(dirname "$BREW")"
 
 # ---------- 交互式复选框选择 (仅 TTY; SKIP_INTERACTIVE=1 或管道输入时跳过) ----------
