@@ -342,6 +342,20 @@ if [[ "$INSTALL_ZSH" == "1" ]]; then
 fi
 
 # ---------- 1.6 开发工具 (uv / bun / oh-my-pi(omp) / nvm+node) ----------
+# 点分数字版本比较: $1 >= $2 返回 0 (如 "1.3.14" vs "1.3.14"), 兼容 bash 3.2, 无外部依赖
+version_ge() {
+  local IFS=. i v1="$1" v2="$2"
+  set -- $v1
+  local -a a=("$@")
+  set -- $v2
+  local -a b=("$@")
+  for i in 0 1 2; do
+    (( ${a[$i]:-0} > ${b[$i]:-0} )) && return 0
+    (( ${a[$i]:-0} < ${b[$i]:-0} )) && return 1
+  done
+  return 0
+}
+
 install_devtools() {
   # uv (Python 包管理器)
   if [[ "$INSTALL_UV" == "1" ]]; then
@@ -373,8 +387,29 @@ install_devtools() {
     fi
   fi
 
-  # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp)
+  # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp) — 要求 bun >= 1.3.14
   if [[ "$INSTALL_OMP" == "1" ]]; then
+    # bun 版本检查: 过低则自动升级 (brew 版用 brew upgrade, 独立安装用 bun upgrade)
+    local bun_ver=""
+    if command -v bun >/dev/null 2>&1; then
+      bun_ver="$(bun --version 2>/dev/null || echo 0)"
+    fi
+    if [[ -n "$bun_ver" ]] && ! version_ge "$bun_ver" "1.3.14"; then
+      warn "bun $bun_ver 过低, oh-my-pi 需要 bun >= 1.3.14, 正在升级 ..."
+      if [[ -x "$HOME/.bun/bin/bun" ]]; then
+        bun upgrade >/dev/null 2>&1 || true
+      elif command -v brew >/dev/null 2>&1 && brew list --versions bun >/dev/null 2>&1; then
+        brew upgrade bun >/dev/null 2>&1 || true
+      else
+        bun upgrade >/dev/null 2>&1 || true
+      fi
+      bun_ver="$(bun --version 2>/dev/null || echo 0)"
+      if version_ge "$bun_ver" "1.3.14"; then
+        info "bun 已升级到 $bun_ver"
+      else
+        warn "bun 仍为 $bun_ver, 请手动升级: brew upgrade bun 或 https://bun.sh/docs/installation"
+      fi
+    fi
     if command -v omp >/dev/null 2>&1 || [[ -x "$HOME/.bun/bin/omp" ]]; then
       info "oh-my-pi (omp) 已安装"
     else
