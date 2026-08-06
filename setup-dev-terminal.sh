@@ -248,16 +248,15 @@ install_cask() { # brew cask (ghostty / 字体)
   fi
 }
 
-[[ "$INSTALL_GHOSTTY" == "1" ]] && install_cask ghostty
-[[ "$INSTALL_ZELLIJ" == "1" ]] && install_formula zellij
-[[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
+# ---------- 1.5 基础工具 (下载/克隆基础: 系统自带即跳过) ----------
+install_util curl
+install_util git
+[[ "$INSTALL_ZSH" == "1" ]] && install_util zsh
 
-# ---------- 1.5 zsh 栈 (zsh + oh-my-zsh + 插件) ----------
+# ---------- 1.6 zsh 栈 (oh-my-zsh + 插件, 依赖 curl/git) ----------
 # 依据: https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH
 install_zsh_stack() {
-  install_util zsh
-  install_util curl
-  install_util git
+  # zsh/curl/git 已由 1.5 基础工具步骤确保
 
   # oh-my-zsh (--unattended: 非交互, 不修改默认 shell)
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
@@ -337,11 +336,7 @@ PYEOF
   fi
 }
 
-if [[ "$INSTALL_ZSH" == "1" ]]; then
-  install_zsh_stack
-fi
-
-# ---------- 1.6 开发工具 (uv / bun / oh-my-pi(omp) / nvm+node) ----------
+# ---------- 1.7 运行时/包管理器 (uv/bun, 依赖 curl) ----------
 # 点分数字版本比较: $1 >= $2 返回 0 (如 "1.3.14" vs "1.3.14"), 兼容 bash 3.2, 无外部依赖
 version_ge() {
   local IFS=. i v1="$1" v2="$2"
@@ -356,7 +351,7 @@ version_ge() {
   return 0
 }
 
-install_devtools() {
+install_devtools_base() { # uv/bun (运行时/包管理器)
   # uv (Python 包管理器)
   if [[ "$INSTALL_UV" == "1" ]]; then
     if command -v uv >/dev/null 2>&1; then
@@ -386,7 +381,9 @@ install_devtools() {
       fi
     fi
   fi
+}
 
+install_devtools_apps() { # omp/nvm (上层工具, 依赖 bun/curl)
   # oh-my-pi (@oh-my-pi/pi-coding-agent, bin: omp) — 要求 bun >= 1.3.14
   if [[ "$INSTALL_OMP" == "1" ]]; then
     # bun 版本检查: 过低则自动升级 (brew 版用 brew upgrade, 独立安装用 bun upgrade)
@@ -451,8 +448,26 @@ install_devtools() {
   fi
 }
 
+# ========== 执行: 按依赖顺序安装 ==========
+# 1.5 基础工具 (curl/git/zsh) 已在上方执行
+# 1.7 运行时/包管理器 (uv/bun)
 if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then
-  install_devtools
+  install_devtools_base
+fi
+
+# 1.6 zsh 栈 (oh-my-zsh + 插件 + zshrc)
+if [[ "$INSTALL_ZSH" == "1" ]]; then
+  install_zsh_stack
+fi
+
+# 应用层 (ghostty/zellij/font)
+[[ "$INSTALL_GHOSTTY" == "1" ]] && install_cask ghostty
+[[ "$INSTALL_ZELLIJ" == "1" ]] && install_formula zellij
+[[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
+
+# 上层工具 (omp 依赖 bun, nvm 依赖 curl)
+if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then
+  install_devtools_apps
 fi
 
 # ---------- 2. ghostty CLI 链接到 brew bin ----------
