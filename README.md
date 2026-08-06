@@ -28,17 +28,19 @@ optionally auto-starts zellij inside Ghostty.
 
 ## ⚡ One-line install
 
-```bash
-# 推荐: 交互式复选框选择要安装的组件 (保留 TTY)
-curl -fsSL https://raw.githubusercontent.com/qqlzfmn/setup-dev-terminal/main/setup-dev-terminal.sh \
-  -o /tmp/setup-dev-terminal.sh && bash /tmp/setup-dev-terminal.sh
+**交互式**（推荐，保留复选框菜单）：
 
-# 非交互: 环境变量默认全装 (适合 CI / 管道场景)
+```bash
+curl -fsSL https://raw.githubusercontent.com/qqlzfmn/setup-dev-terminal/main/setup-dev-terminal.sh -o /tmp/setup-dev-terminal.sh && bash /tmp/setup-dev-terminal.sh
+```
+
+**非交互**（环境变量默认全装，适合 CI/管道）：
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/qqlzfmn/setup-dev-terminal/main/setup-dev-terminal.sh | bash
 ```
 
-> 💡 为什么推荐 `-o` 保存再执行？`curl | bash` 管道会把脚本塞进 stdin，
-> 终端就检测不到 TTY，交互式复选框菜单不会出现，会直接按环境变量默认值全装。
+> 💡 `curl | bash` 管道会丢失 TTY，交互式复选框菜单不会出现，会直接按默认全装。所以想交互选择时必须先用 `-o` 下载到文件再执行。
 
 ## 🚀 Usage
 
