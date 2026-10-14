@@ -1,11 +1,34 @@
 # setup-dev-terminal
 
-> 🚀 One-command dev terminal setup for coding agents (Ghostty + herdr + Nerd Font) on macOS
+> 🚀 One-command dev terminal setup for coding agents (Ghostty + herdr + Nerd Font) on macOS & Linux
 
 A single idempotent shell script that installs and configures a modern terminal
 environment tuned for AI coding agents (Claude Code, Codex CLI, Gemini CLI,
 OpenCode, pi, …) — GPU-rendered terminal, multiplexer, a complete Nerd Font,
 and a full zsh stack (zsh + oh-my-zsh + plugins).
+
+Runs on **macOS** (Homebrew) and **Linux** (apt / dnf / pacman / zypper / apk /
+emerge / xbps / nix). Components that cannot work on the current system are
+**greyed out and unselectable** in the menu — for example Ghostty on a headless
+server, or herdr on an architecture with no prebuilt binary.
+
+## 🖥️ Platform support
+
+| Component | macOS | Linux (desktop) | Linux (headless) | Notes |
+|---|---|---|---|---|
+| Ghostty | ✅ cask | ✅ distro pkg | 🚫 needs a display | GUI app; needs GTK4 + libadwaita + OpenGL |
+| herdr | ✅ | ✅ | ✅ | static binary; x86_64 + aarch64 only |
+| Nerd Font | ✅ cask | ✅ pkg or user fonts | ✅ | falls back to `~/.local/share/fonts` + `fc-cache` |
+| zsh stack | ✅ | ✅ | ✅ | oh-my-zsh + plugins |
+| uv / bun / omp | ✅ | ✅ | ✅ | x86_64 + aarch64 |
+| nvm + Node | ✅ | ✅ | ✅ | |
+| agent skills | ✅ | ✅ | ✅ | needs node/npx |
+
+Ghostty packaging by distro: **Arch, openSUSE, Gentoo, Void, Solus, Alpine,
+NixOS** ship it in official repos; **Ubuntu 26.04+** has it in `universe`;
+**Fedora/RHEL** need the `scottames/ghostty` COPR; **Debian** and older Ubuntu
+need the community `.deb`; any distro can use the AppImage. The script prints
+the right command for your distro when a package isn't available.
 
 ## ✨ What it installs
 
@@ -16,7 +39,7 @@ and a full zsh stack (zsh + oh-my-zsh + plugins).
 | [herdr skill](https://herdr.dev/docs/agent-skill/) | Teaches coding agents to drive herdr panes from inside a pane |
 | [agent skills](https://skills.sh) | Curated agent skills via `npx skills` (mattpocock, opencli, cnb, cli-anything, …) |
 | JetBrainsMono Nerd Font | Full-weight monospace font with 3,000+ icons |
-| [zsh](https://zsh.org) | Latest zsh via Homebrew |
+| [zsh](https://zsh.org) | Latest zsh (Homebrew on macOS, distro package on Linux) |
 | [oh-my-zsh](https://ohmyz.sh) | Popular zsh framework (non-interactive install) |
 | zsh-syntax-highlighting / zsh-autosuggestions | Essential zsh plugins, auto-enabled in `.zshrc` |
 | [uv](https://docs.astral.sh/uv/) | Fast Python package manager |
@@ -110,7 +133,8 @@ Override via environment variables:
 | `NODE_VERSION` | `24` | Node version to install via nvm |
 | `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |
 | `FORCE_BREW_TOOLS` | `0` | Set `1` to force Homebrew install of zsh/curl/git (default: skip if system-provided) |
-| `INSTALL_BREW` | `1` | Auto-install Homebrew if missing; set `0` to fail with a hint instead |
+| `INSTALL_BREW` | `1` | Auto-install Homebrew if missing (macOS only); set `0` to fail with a hint instead |
+| `FORCE_GUI` | `0` | Set `1` to allow Ghostty even without `DISPLAY`/`WAYLAND_DISPLAY` (e.g. WSL, remote X) |
 
 Example:
 
@@ -169,9 +193,14 @@ Run `omp` to start oh-my-pi.
 
 ## 🧰 Requirements
 
-- macOS (Apple Silicon or Intel)
-- [Homebrew](https://brew.sh) — **auto-installed** by the script if missing
+- **macOS** (Apple Silicon or Intel) or **Linux** (x86_64 / aarch64 recommended)
+- macOS: [Homebrew](https://brew.sh) — **auto-installed** if missing
   (official installer, may prompt for sudo; disable with `INSTALL_BREW=0`)
+- Linux: `sudo` access for system packages (a `curl`/`git` install needs none)
+- `curl` is required; `unzip` is used for the font fallback on Linux
+
+Unsupported combinations are detected and skipped automatically — you don't need
+to remember the table above.
 
 ## 📄 License
 
