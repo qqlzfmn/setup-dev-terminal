@@ -10,8 +10,10 @@
 # 幂等:   可重复运行, 已装的跳过, 配置相同不覆盖, zshrc 不重复追加
 # 环境变量可覆盖 (非交互模式或作为默认值):
 #   GHOSTTY_THEME=Dracula  HERDR_THEME=dracula  FONT_FAMILY="JetBrainsMono Nerd Font Mono"
-#   FONT_SIZE=14  HERDR_AUTOSTART=1 (0 表示不自动启动)  SKIP_HERDR_SKILL=1 (跳过 herdr skill 安装)
+#   FONT_SIZE=14  HERDR_AUTOSTART=1 (0 表示不自动启动)
 #   INSTALL_GHOSTTY/INSTALL_HERDR/INSTALL_FONT/INSTALL_ZSH=1 (0 跳过对应组件)
+#   INSTALL_SKILLS=1 (0 跳过 agent skills 安装; 需要 node/npx)
+#     SKILL_PACKAGES 见下方: "<源>|<skill 名>", skill 名写 "*" 表示装该源全部
 #   INSTALL_ZSH=1 (0 跳过 zsh 栈)  ZSH_THEME_NAME=ys  ZSH_PLUGINS="git z zsh-syntax-highlighting zsh-autosuggestions"
 #   INSTALL_DEVTOOLS=1 (0 跳过 uv/bun/oh-my-pi/nvm)  单项可用 INSTALL_UV/INSTALL_BUN/INSTALL_OMP/INSTALL_NVM=0 关闭
 #   NODE_VERSION=24 (nvm 安装的 node 版本)  NVM_NODEJS_ORG_MIRROR= (可选: 国内镜像加速, 如 https://npmmirror.com/mirrors/node/)
@@ -30,6 +32,23 @@ INSTALL_HERDR="${INSTALL_HERDR:-1}"          # 1=安装 herdr
 INSTALL_FONT="${INSTALL_FONT:-1}"            # 1=安装 JetBrainsMono Nerd Font
 ZSH_THEME_NAME="${ZSH_THEME_NAME:-ys}"
 ZSH_PLUGINS="${ZSH_PLUGINS:-git z zsh-syntax-highlighting zsh-autosuggestions}"
+
+# ---- agent skills (npx skills, 安装到 ~/.agents/skills, 多数 agent 自动读取) ----
+INSTALL_SKILLS="${INSTALL_SKILLS:-1}"           # 1=安装 agent skills (需要 node/npx), 0=跳过
+SKILLS_DIR="$HOME/.agents/skills"
+SKILLS_LOCK="$HOME/.agents/.skill-lock.json"
+# 每个元素格式: "<源>|<skill 名>"  (源可为 owner/repo 或 git URL)
+#   skill 名写 "*" 表示装该源全部 skill; 也可写空格分隔的多个名字, 只装指定的
+# 注意: 同名 skill 会被后装的覆盖 (如 herdr 与 mattpocock 都有 triage)
+SKILL_PACKAGES=(
+  "herdrdev/herdr|herdr"
+  "mattpocock/skills|code-review codebase-design diagnosing-bugs grilling grill-me grill-with-docs handoff implement improve-codebase-architecture prototype research tdd teach to-questionnaire to-spec to-tickets wait-what writing-for-agents"
+  "vercel-labs/skills|find-skills"
+  "jackwener/opencli|opencli-adapter-author opencli-autofix opencli-browser opencli-usage smart-search"
+  "hkuds/cli-anything|cli-anything cli-hub-meta-skill cli-anything-audacity cli-anything-blender cli-anything-comfyui cli-anything-libreoffice cli-anything-mermaid cli-anything-musescore"
+  "https://cnb.cool/cnb/skills/cnb-skill.git|cnb-api cnb-code-commit cnb-code-review cnb-docs cnb-npc-search cnb-pipeline cnb-repo-knowledge-base cnb-tapd-resource-fetcher cnb-text-path-converter cnb-upload-attachment"
+  "https://cnb.cool/lzf.ai/utils/dmxapi-cli.git|cli-anything-dmxapi"
+)
 
 # ---- 开发工具 (uv / bun / oh-my-pi(omp) / nvm+node) ----
 INSTALL_DEVTOOLS="${INSTALL_DEVTOOLS:-1}"       # 总开关
@@ -160,6 +179,7 @@ run_interactive() {
     "bun|bun JS 运行时/包管理器"
     "omp|oh-my-pi (omp) 开发助手"
     "nvm|nvm + Node $NODE_VERSION"
+    "skills|agent skills (npx skills, 需 node)"
   )
   MENU_INIT=()
   local i id
@@ -168,6 +188,7 @@ run_interactive() {
   # 勾选结果覆盖安装开关 (全默认关, 勾选的开启)
   INSTALL_GHOSTTY=0; INSTALL_HERDR=0; INSTALL_FONT=0
   INSTALL_ZSH=0; INSTALL_UV=0; INSTALL_BUN=0; INSTALL_OMP=0; INSTALL_NVM=0
+  INSTALL_SKILLS=0
   for i in ${MENU_RESULT[@]+"${MENU_RESULT[@]}"}; do
     id="${MENU_OPTIONS[$i]%%|*}"
     case "$id" in
@@ -179,6 +200,7 @@ run_interactive() {
       bun)     INSTALL_BUN=1 ;;
       omp)     INSTALL_OMP=1 ;;
       nvm)     INSTALL_NVM=1 ;;
+      skills)  INSTALL_SKILLS=1 ;;
     esac
   done
   echo
@@ -261,35 +283,76 @@ install_herdr() { # herdr (官方 install.sh, 二进制落在 ~/.local/bin, 自�
   fi
 }
 
-install_herdr_skill() { # herdr 的 agent skill (教 agent 从 herdr pane 内控制 herdr)
-  # 通用目录 ~/.agents/skills 被多数 agent 读取; npx skills 会自动软链到 Claude Code 等
-  if [[ -f "$HOME/.agents/skills/herdr/SKILL.md" ]]; then
-    info "herdr skill 已安装, 跳过"
+install_skills() { # agent skills -> ~/.agents/skills (多数 agent 自动读取; npx skills 会软链到 Claude Code 等)
+  # 注意: npx skills add 失败时也返回 0 (实测), 所以用"目录是否新增"判断结果, 不看退出码
+  if ! command -v npx >/dev/null 2>&1; then
+    warn "未找到 npx (需要 node), 跳过 agent skills 安装; 装好 node 后重跑本脚本即可"
+    install_herdr_skill_fallback
     return
   fi
-  warn "安装 herdr skill ..."
-  if command -v npx >/dev/null 2>&1; then
-    if npx --yes skills@latest add herdrdev/herdr --skill herdr -g -y; then
-      info "herdr skill 安装完成 (npx skills -g)"
-      return
+  local entry src skills before after
+  local -a skill_args
+  for entry in "${SKILL_PACKAGES[@]}"; do
+    src="${entry%%|*}"
+    skills="${entry#*|}"
+    if source_installed "$src" "$skills"; then
+      info "skills 已安装, 跳过: $src"
+      continue
     fi
-    warn "npx skills 安装失败, 尝试回退方案 ..."
+    # 用数组传参: skills 为 "*" 时若不引号, 会被 shell 当通配符展开成当前目录文件名
+    skill_args=()
+    read -r -a skill_args <<< "$skills"
+    warn "安装 skills: $src ($skills) ..."
+    before="$(count_skills)"
+    npx --yes skills@latest add "$src" -g -y -s ${skill_args[@]+"${skill_args[@]}"} >/dev/null 2>&1 || true
+    after="$(count_skills)"
+    if [[ "$after" -gt "$before" ]]; then
+      info "skills 安装完成: $src (+$((after - before)))"
+    else
+      warn "skills 未新增: $src (可能已全部存在, 或该源不可用)"
+    fi
+  done
+  install_herdr_skill_fallback
+}
+
+source_installed() { # 该源的 skill 是否都已装好
+  # 显式名字: 逐个查目录, 缺任何一个就重装 (能补齐半途失败的)
+  # wildcard "*": 名字未知, 退回查 lock 里是否登记过该源
+  local src="$1" skills="$2" skill
+  if [[ "$skills" == "*" ]]; then
+    [[ -f "$SKILLS_LOCK" ]] || return 1
+    grep -qF "\"source\": \"$src\"" "$SKILLS_LOCK" 2>/dev/null
+    return
   fi
-  # 回退: 无 node/npx 时用 herdr 自带副本 (herdr --skill 输出与仓库副本一致)
+  for skill in $skills; do
+    [[ -d "$SKILLS_DIR/$skill" ]] || return 1
+  done
+  return 0
+}
+
+count_skills() { # 安全计数 (set -e + pipefail 下, 目录不存在时 ls 会失败并中止脚本)
+  if [[ -d "$SKILLS_DIR" ]]; then
+    ls -1 "$SKILLS_DIR" | wc -l | tr -d ' '
+  else
+    echo 0
+  fi
+}
+
+install_herdr_skill_fallback() { # herdr skill 兜底: 无 npx 时用 herdr 自带副本 (herdr --skill)
+  [[ -f "$SKILLS_DIR/herdr/SKILL.md" ]] && return 0
   local herdr_bin=""
   if command -v herdr >/dev/null 2>&1; then
     herdr_bin="$(command -v herdr)"
   elif [[ -x "$HOME/.local/bin/herdr" ]]; then
     herdr_bin="$HOME/.local/bin/herdr"
   fi
-  if [[ -n "$herdr_bin" ]]; then
-    mkdir -p "$HOME/.agents/skills/herdr"
-    if "$herdr_bin" --skill > "$HOME/.agents/skills/herdr/SKILL.md" 2>/dev/null; then
-      info "herdr skill 安装完成 (herdr --skill 回退)"
-      return
-    fi
+  [[ -n "$herdr_bin" ]] || return 0
+  mkdir -p "$SKILLS_DIR/herdr"
+  if "$herdr_bin" --skill > "$SKILLS_DIR/herdr/SKILL.md" 2>/dev/null; then
+    info "herdr skill 安装完成 (herdr --skill 回退)"
+  else
+    warn "herdr skill 安装失败, 请手动运行: npx skills add herdrdev/herdr --skill herdr -g"
   fi
-  warn "herdr skill 安装失败, 请手动运行: npx skills add herdrdev/herdr --skill herdr -g"
 }
 
 # ---------- 1.5 基础工具 (下载/克隆基础: 系统自带即跳过) ----------
@@ -508,9 +571,14 @@ fi
 [[ "$INSTALL_GHOSTTY" == "1" ]] && install_cask ghostty
 if [[ "$INSTALL_HERDR" == "1" ]]; then
   install_herdr
-  [[ "${SKIP_HERDR_SKILL:-0}" == "1" ]] || install_herdr_skill
+  install_herdr_skill_fallback   # herdr 自带 skill, 不依赖 npx; 若已存在则跳过
 fi
 [[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
+
+# agent skills (需 node/npx; 上一段 devtools_base 已装好 nvm+node 并 source, 故此处 npx 可用)
+if [[ "$INSTALL_SKILLS" == "1" ]]; then
+  install_skills
+fi
 
 # 上层工具 (omp 依赖 bun)
 if [[ "$INSTALL_DEVTOOLS" == "1" ]]; then

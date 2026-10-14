@@ -14,6 +14,7 @@ and a full zsh stack (zsh + oh-my-zsh + plugins).
 | [Ghostty](https://ghostty.org) | Fast GPU-rendered terminal, the 2025 community favorite |
 | [herdr](https://herdr.dev) | Terminal workspace manager for AI coding agents (tmux alternative) |
 | [herdr skill](https://herdr.dev/docs/agent-skill/) | Teaches coding agents to drive herdr panes from inside a pane |
+| [agent skills](https://skills.sh) | Curated agent skills via `npx skills` (mattpocock, opencli, cnb, cli-anything, …) |
 | JetBrainsMono Nerd Font | Full-weight monospace font with 3,000+ icons |
 | [zsh](https://zsh.org) | Latest zsh via Homebrew |
 | [oh-my-zsh](https://ohmyz.sh) | Popular zsh framework (non-interactive install) |
@@ -63,6 +64,7 @@ An **interactive checkbox menu** lets you pick which components to install
   [x] bun JS 运行时/包管理器
   [x] oh-my-pi (omp) 开发助手
   [x] nvm + Node 24
+  [x] agent skills (npx skills, 需 node)
 ────────────────────────────────────────
 ```
 
@@ -98,7 +100,7 @@ Override via environment variables:
 | `FONT_FAMILY` | `JetBrainsMono Nerd Font Mono` | Terminal font family |
 | `FONT_SIZE` | `14` | Terminal font size |
 | `HERDR_AUTOSTART` | `1` | Set `0` to disable auto-starting herdr |
-| `SKIP_HERDR_SKILL` | `0` | Set `1` to skip installing the herdr agent skill |
+| `INSTALL_SKILLS` | `1` | Set `0` to skip agent skills (needs node/npx); edit `SKILL_PACKAGES` to change the set |
 | `INSTALL_ZSH` | `1` | Set `0` to skip the zsh stack (zsh / oh-my-zsh / plugins) |
 | `ZSH_THEME_NAME` | `ys` | oh-my-zsh theme to set in `~/.zshrc` |
 | `ZSH_PLUGINS` | `git z zsh-syntax-highlighting zsh-autosuggestions` | Plugins to clone & enable |
@@ -131,9 +133,33 @@ herdr is mouse-first: click panes and tabs, drag split borders, right-click for
 menus. See the [keyboard docs](https://herdr.dev/docs/keyboard/) for a
 prefix-free setup.
 
-The herdr agent skill installs to `~/.agents/skills/herdr/` (via `npx skills`,
-falling back to `herdr --skill`). It lets coding agents drive herdr from inside a
-pane. Skip it with `SKIP_HERDR_SKILL=1`.
+Agent skills install to `~/.agents/skills/` via `npx skills add … -g`, and most
+agents (Claude Code, Codex, OpenCode, …) pick them up automatically. The set is
+declared in `SKILL_PACKAGES` near the top of the script — one
+`"<source>|<skill names>"` entry per source:
+
+```bash
+SKILL_PACKAGES=(
+  "herdrdev/herdr|herdr"
+  "mattpocock/skills|code-review tdd research ..."   # only these are installed
+  "some/other-repo|*"                                # * = every skill in the source
+)
+```
+
+A space-separated list installs only those skills; `*` installs everything the
+source publishes. Re-runs skip a source whose skills are already present (a
+source that lists names is checked per-skill, so a half-finished install is
+completed on the next run). Skip the whole step with `INSTALL_SKILLS=0`.
+
+> `*` can be large: `hkuds/cli-anything` ships 72 skills. Name them explicitly
+> if you only want a few.
+>
+> Name collisions resolve by order — a later source overwrites an earlier one.
+> `herdrdev/herdr` and `mattpocock/skills` both publish `triage`; the order
+> above keeps mattpocock's version.
+
+The herdr skill is special-cased: it also installs from the herdr binary itself
+(`herdr --skill`), so it works even without node/npx.
 
 zsh plugins take effect in new terminals. If your login shell is still the
 system zsh, switch it with `chsh -s $(which zsh)`.
