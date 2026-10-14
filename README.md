@@ -1,6 +1,6 @@
 # setup-dev-terminal
 
-> 🚀 One-command dev terminal setup for coding agents (Ghostty + zellij + Nerd Font) on macOS
+> 🚀 One-command dev terminal setup for coding agents (Ghostty + herdr + Nerd Font) on macOS
 
 A single idempotent shell script that installs and configures a modern terminal
 environment tuned for AI coding agents (Claude Code, Codex CLI, Gemini CLI,
@@ -12,7 +12,8 @@ and a full zsh stack (zsh + oh-my-zsh + plugins).
 | Tool | Why |
 |---|---|
 | [Ghostty](https://ghostty.org) | Fast GPU-rendered terminal, the 2025 community favorite |
-| [zellij](https://zellij.dev) | Terminal multiplexer with a friendly UI (tmux alternative) |
+| [herdr](https://herdr.dev) | Terminal workspace manager for AI coding agents (tmux alternative) |
+| [herdr skill](https://herdr.dev/docs/agent-skill/) | Teaches coding agents to drive herdr panes from inside a pane |
 | JetBrainsMono Nerd Font | Full-weight monospace font with 3,000+ icons |
 | [zsh](https://zsh.org) | Latest zsh via Homebrew |
 | [oh-my-zsh](https://ohmyz.sh) | Popular zsh framework (non-interactive install) |
@@ -23,8 +24,8 @@ and a full zsh stack (zsh + oh-my-zsh + plugins).
 | [nvm](https://github.com/nvm-sh/nvm) + Node.js | Node version manager + Node `24` (with npm) |
 
 It also links the Ghostty CLI, writes sane configs (Dracula theme, font, padding,
-scrollback), sets `ZSH_THEME` + `plugins=()` in `~/.zshrc` (with backup), and
-optionally auto-starts zellij inside Ghostty.
+scrollback), sets `ZSH_THEME` + `plugins=()` in `~/.zshrc` (with backup), installs
+the herdr agent skill, and optionally auto-starts herdr inside Ghostty.
 
 ## ⚡ One-line install
 
@@ -55,7 +56,7 @@ An **interactive checkbox menu** lets you pick which components to install
 安装项 (j/k或↑↓移动 · 空格勾选 · 回车确认 · q退出)
 ────────────────────────────────────────
 ▶ [x] Ghostty 终端 (GPU 渲染)
-  [x] zellij 终端复用 (多窗口/pane)
+  [x] herdr 终端复用 (多窗口/pane)
   [x] JetBrainsMono Nerd Font (图标字体)
   [x] zsh 栈: zsh + oh-my-zsh + 插件
   [x] uv Python 包管理器
@@ -84,6 +85,7 @@ Runs are **idempotent** — safe to re-run any time:
 - Config files are only written when content differs
 - Old configs are backed up as `*.bak.<timestamp>` before being overwritten
 - The zshrc auto-start block is never appended twice
+- The herdr agent skill is skipped when already installed
 
 ## 🎛️ Configuration
 
@@ -92,15 +94,16 @@ Override via environment variables:
 | Variable | Default | Description |
 |---|---|---|
 | `GHOSTTY_THEME` | `Dracula` | Ghostty theme name (see `ghostty +list-themes`) |
-| `ZELLIJ_THEME` | `dracula` | zellij theme name |
+| `HERDR_THEME` | `dracula` | herdr theme name (see `herdr --default-config`) |
 | `FONT_FAMILY` | `JetBrainsMono Nerd Font Mono` | Terminal font family |
 | `FONT_SIZE` | `14` | Terminal font size |
-| `ZELLIJ_AUTOSTART` | `1` | Set `0` to disable auto-starting zellij |
+| `HERDR_AUTOSTART` | `1` | Set `0` to disable auto-starting herdr |
+| `SKIP_HERDR_SKILL` | `0` | Set `1` to skip installing the herdr agent skill |
 | `INSTALL_ZSH` | `1` | Set `0` to skip the zsh stack (zsh / oh-my-zsh / plugins) |
 | `ZSH_THEME_NAME` | `ys` | oh-my-zsh theme to set in `~/.zshrc` |
 | `ZSH_PLUGINS` | `git z zsh-syntax-highlighting zsh-autosuggestions` | Plugins to clone & enable |
 | `INSTALL_DEVTOOLS` | `1` | Set `0` to skip all dev tools below |
-| `INSTALL_GHOSTTY` / `INSTALL_ZELLIJ` / `INSTALL_FONT` / `INSTALL_ZSH` | `1` | Toggle each component (also honored as interactive defaults) |
+| `INSTALL_GHOSTTY` / `INSTALL_HERDR` / `INSTALL_FONT` / `INSTALL_ZSH` | `1` | Toggle each component (also honored as interactive defaults) |
 | `INSTALL_UV` / `INSTALL_BUN` / `INSTALL_OMP` / `INSTALL_NVM` | `1` | Disable individually with `0` |
 | `NODE_VERSION` | `24` | Node version to install via nvm |
 | `NVM_NODEJS_ORG_MIRROR` | *(empty)* | Optional mirror for nvm downloads (e.g. `https://npmmirror.com/mirrors/node/`) |
@@ -110,19 +113,27 @@ Override via environment variables:
 Example:
 
 ```bash
-FONT_SIZE=13 ZELLIJ_THEME=catppuccin-mocha bash setup-dev-terminal.sh
+FONT_SIZE=13 HERDR_THEME=catppuccin bash setup-dev-terminal.sh
 ```
 
 ## 🎹 Cheat sheet
 
 | Keys | Action |
 |---|---|
-| `Ctrl+p` then `n` / `d` / `r` / `x` | New pane / split down / split right / close |
-| `Ctrl+t` then `n` | New tab |
-| `Ctrl+o` then `d` | Detach (back to bare shell) |
-| `Ctrl+o` then `x` | Exit zellij |
+| `Ctrl+b` then `v` / `-` | Split right / split down |
+| `Ctrl+b` then `c` | New tab |
+| `Ctrl+b` then `q` | Detach (back to bare shell) |
+| `Ctrl+b` then `?` | Show all active keybindings |
 
-To stop the auto-start: set `ZELLIJ_AUTOSTART=0` in `~/.zshrc`.
+To stop the auto-start: set `HERDR_AUTOSTART=0` in `~/.zshrc`.
+
+herdr is mouse-first: click panes and tabs, drag split borders, right-click for
+menus. See the [keyboard docs](https://herdr.dev/docs/keyboard/) for a
+prefix-free setup.
+
+The herdr agent skill installs to `~/.agents/skills/herdr/` (via `npx skills`,
+falling back to `herdr --skill`). It lets coding agents drive herdr from inside a
+pane. Skip it with `SKIP_HERDR_SKILL=1`.
 
 zsh plugins take effect in new terminals. If your login shell is still the
 system zsh, switch it with `chsh -s $(which zsh)`.

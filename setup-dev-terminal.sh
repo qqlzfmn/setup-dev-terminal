@@ -2,16 +2,16 @@
 # ============================================================
 # 开发终端一键安装脚本 (macOS + Homebrew)
 #
-# 安装: Ghostty + zellij + JetBrainsMono Nerd Font + zsh 栈 + 开发工具(uv/bun/oh-my-pi/nvm+node)
-# 配置: Ghostty 字体/主题 + zellij 主题 + zshrc(zellij 自动启动 + oh-my-zsh 主题/插件)
+# 安装: Ghostty + herdr + JetBrainsMono Nerd Font + zsh 栈 + 开发工具(uv/bun/oh-my-pi/nvm+node)
+# 配置: Ghostty 字体/主题 + herdr 主题 + zshrc(herdr 自动启动 + oh-my-zsh 主题/插件)
 #
 # 用法:   bash setup-dev-terminal.sh           # 交互式: 复选框选择要安装的组件
 #         SKIP_INTERACTIVE=1 bash ...            # 跳过交互, 用环境变量配置
 # 幂等:   可重复运行, 已装的跳过, 配置相同不覆盖, zshrc 不重复追加
 # 环境变量可覆盖 (非交互模式或作为默认值):
-#   GHOSTTY_THEME=Dracula  ZELLIJ_THEME=dracula  FONT_FAMILY="JetBrainsMono Nerd Font Mono"
-#   FONT_SIZE=14  ZELLIJ_AUTOSTART=1 (0 表示不自动启动)
-#   INSTALL_GHOSTTY/INSTALL_ZELLIJ/INSTALL_FONT/INSTALL_ZSH=1 (0 跳过对应组件)
+#   GHOSTTY_THEME=Dracula  HERDR_THEME=dracula  FONT_FAMILY="JetBrainsMono Nerd Font Mono"
+#   FONT_SIZE=14  HERDR_AUTOSTART=1 (0 表示不自动启动)  SKIP_HERDR_SKILL=1 (跳过 herdr skill 安装)
+#   INSTALL_GHOSTTY/INSTALL_HERDR/INSTALL_FONT/INSTALL_ZSH=1 (0 跳过对应组件)
 #   INSTALL_ZSH=1 (0 跳过 zsh 栈)  ZSH_THEME_NAME=ys  ZSH_PLUGINS="git z zsh-syntax-highlighting zsh-autosuggestions"
 #   INSTALL_DEVTOOLS=1 (0 跳过 uv/bun/oh-my-pi/nvm)  单项可用 INSTALL_UV/INSTALL_BUN/INSTALL_OMP/INSTALL_NVM=0 关闭
 #   NODE_VERSION=24 (nvm 安装的 node 版本)  NVM_NODEJS_ORG_MIRROR= (可选: 国内镜像加速, 如 https://npmmirror.com/mirrors/node/)
@@ -20,13 +20,13 @@ set -euo pipefail
 
 # ---------- 可配置变量 ----------
 GHOSTTY_THEME="${GHOSTTY_THEME:-Dracula}"
-ZELLIJ_THEME="${ZELLIJ_THEME:-dracula}"
+HERDR_THEME="${HERDR_THEME:-dracula}"
 FONT_FAMILY="${FONT_FAMILY:-JetBrainsMono Nerd Font Mono}"
 FONT_SIZE="${FONT_SIZE:-14}"
-ZELLIJ_AUTOSTART="${ZELLIJ_AUTOSTART:-1}"
+HERDR_AUTOSTART="${HERDR_AUTOSTART:-1}"
 INSTALL_ZSH="${INSTALL_ZSH:-1}"              # 1=安装 zsh 栈(zsh/oh-my-zsh/插件), 0=跳过
 INSTALL_GHOSTTY="${INSTALL_GHOSTTY:-1}"      # 1=安装 Ghostty
-INSTALL_ZELLIJ="${INSTALL_ZELLIJ:-1}"        # 1=安装 zellij
+INSTALL_HERDR="${INSTALL_HERDR:-1}"          # 1=安装 herdr
 INSTALL_FONT="${INSTALL_FONT:-1}"            # 1=安装 JetBrainsMono Nerd Font
 ZSH_THEME_NAME="${ZSH_THEME_NAME:-ys}"
 ZSH_PLUGINS="${ZSH_PLUGINS:-git z zsh-syntax-highlighting zsh-autosuggestions}"
@@ -46,9 +46,9 @@ INSTALL_BREW="${INSTALL_BREW:-1}"          # 1=未检测到 brew 时自动安装
 # ---------- 路径 ----------
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 GHOSTTY_CONFIG="$CONFIG_DIR/ghostty/config"
-ZELLIJ_CONFIG="$CONFIG_DIR/zellij/config.kdl"
+HERDR_CONFIG="$CONFIG_DIR/herdr/config.toml"
 ZSHRC="$HOME/.zshrc"
-ZELLIJ_MARKER="# ---- zellij autostart (setup-dev-terminal.sh) ----"
+HERDR_MARKER="# ---- herdr autostart (setup-dev-terminal.sh) ----"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info() { printf "${GREEN}[✓]${NC} %s\n" "$*"; }
@@ -153,7 +153,7 @@ checkbox_menu() {
 run_interactive() {
   MENU_OPTIONS=(
     "ghostty|Ghostty 终端 (GPU 渲染)"
-    "zellij|zellij 终端复用 (多窗口/pane)"
+    "herdr|herdr 终端复用 (多窗口/pane)"
     "font|JetBrainsMono Nerd Font (图标字体)"
     "zsh|zsh 栈: zsh + oh-my-zsh + 插件"
     "uv|uv Python 包管理器"
@@ -166,13 +166,13 @@ run_interactive() {
   for i in "${!MENU_OPTIONS[@]}"; do MENU_INIT+=("$i"); done
   checkbox_menu
   # 勾选结果覆盖安装开关 (全默认关, 勾选的开启)
-  INSTALL_GHOSTTY=0; INSTALL_ZELLIJ=0; INSTALL_FONT=0
+  INSTALL_GHOSTTY=0; INSTALL_HERDR=0; INSTALL_FONT=0
   INSTALL_ZSH=0; INSTALL_UV=0; INSTALL_BUN=0; INSTALL_OMP=0; INSTALL_NVM=0
   for i in ${MENU_RESULT[@]+"${MENU_RESULT[@]}"}; do
     id="${MENU_OPTIONS[$i]%%|*}"
     case "$id" in
       ghostty) INSTALL_GHOSTTY=1 ;;
-      zellij)  INSTALL_ZELLIJ=1 ;;
+      herdr)   INSTALL_HERDR=1 ;;
       font)    INSTALL_FONT=1 ;;
       zsh)     INSTALL_ZSH=1 ;;
       uv)      INSTALL_UV=1 ;;
@@ -191,7 +191,7 @@ else
 fi
 
 # ---------- 1. 安装软件 ----------
-install_formula() { # brew formula (zellij)
+install_formula() { # brew formula
   local name="$1"
   if brew list --versions "$name" >/dev/null 2>&1; then
     info "$name 已安装 ($(brew list --versions "$name"))"
@@ -246,6 +246,50 @@ install_cask() { # brew cask (ghostty / 字体)
       warn "$name 安装失败, 请手动运行: brew install --cask $name"
     fi
   fi
+}
+
+install_herdr() { # herdr (官方 install.sh, 二进制落在 ~/.local/bin, 自带 PATH 处理)
+  if command -v herdr >/dev/null 2>&1; then
+    info "herdr 已安装 ($(herdr --version 2>/dev/null || echo '?'))"
+    return
+  fi
+  warn "安装 herdr ..."
+  if curl -fsSL https://herdr.dev/install.sh | sh; then
+    info "herdr 安装完成"
+  else
+    warn "herdr 安装失败, 请手动运行: curl -fsSL https://herdr.dev/install.sh | sh"
+  fi
+}
+
+install_herdr_skill() { # herdr 的 agent skill (教 agent 从 herdr pane 内控制 herdr)
+  # 通用目录 ~/.agents/skills 被多数 agent 读取; npx skills 会自动软链到 Claude Code 等
+  if [[ -f "$HOME/.agents/skills/herdr/SKILL.md" ]]; then
+    info "herdr skill 已安装, 跳过"
+    return
+  fi
+  warn "安装 herdr skill ..."
+  if command -v npx >/dev/null 2>&1; then
+    if npx --yes skills@latest add herdrdev/herdr --skill herdr -g -y; then
+      info "herdr skill 安装完成 (npx skills -g)"
+      return
+    fi
+    warn "npx skills 安装失败, 尝试回退方案 ..."
+  fi
+  # 回退: 无 node/npx 时用 herdr 自带副本 (herdr --skill 输出与仓库副本一致)
+  local herdr_bin=""
+  if command -v herdr >/dev/null 2>&1; then
+    herdr_bin="$(command -v herdr)"
+  elif [[ -x "$HOME/.local/bin/herdr" ]]; then
+    herdr_bin="$HOME/.local/bin/herdr"
+  fi
+  if [[ -n "$herdr_bin" ]]; then
+    mkdir -p "$HOME/.agents/skills/herdr"
+    if "$herdr_bin" --skill > "$HOME/.agents/skills/herdr/SKILL.md" 2>/dev/null; then
+      info "herdr skill 安装完成 (herdr --skill 回退)"
+      return
+    fi
+  fi
+  warn "herdr skill 安装失败, 请手动运行: npx skills add herdrdev/herdr --skill herdr -g"
 }
 
 # ---------- 1.5 基础工具 (下载/克隆基础: 系统自带即跳过) ----------
@@ -460,9 +504,12 @@ if [[ "$INSTALL_ZSH" == "1" ]]; then
   install_zsh_stack
 fi
 
-# 应用层 (ghostty/zellij/font)
+# 应用层 (ghostty/herdr/font)
 [[ "$INSTALL_GHOSTTY" == "1" ]] && install_cask ghostty
-[[ "$INSTALL_ZELLIJ" == "1" ]] && install_formula zellij
+if [[ "$INSTALL_HERDR" == "1" ]]; then
+  install_herdr
+  [[ "${SKIP_HERDR_SKILL:-0}" == "1" ]] || install_herdr_skill
+fi
 [[ "$INSTALL_FONT" == "1" ]] && install_cask font-jetbrains-mono-nerd-font
 
 # 上层工具 (omp 依赖 bun)
@@ -526,34 +573,39 @@ EOF
 )"
 fi
 
-if [[ "$INSTALL_ZELLIJ" == "1" ]]; then
-write_if_changed "$ZELLIJ_CONFIG" "$(cat <<EOF
-// ============ Zellij Config ============
-theme "$ZELLIJ_THEME"
-default_shell "zsh"
-scroll_buffer_size 10000
-mouse_mode true
-pane_frames true
+if [[ "$INSTALL_HERDR" == "1" ]]; then
+# 已存在且非空则保留 (herdr 自身也会写入 onboarding = false 等); 空/缺失才写托管配置
+if [[ -s "$HERDR_CONFIG" ]]; then
+  info "herdr 配置已存在, 保留: $HERDR_CONFIG"
+else
+write_if_changed "$HERDR_CONFIG" "$(cat <<EOF
+# ============ Herdr Config ============
+onboarding = false
+
+[theme]
+name = "$HERDR_THEME"
 EOF
 )"
 fi
-
-# ---------- 4. zshrc 追加 zellij 自动启动 (幂等) ----------
-if [[ "$INSTALL_ZELLIJ" == "1" && "$ZELLIJ_AUTOSTART" == "1" ]]; then
-ZSHRC_BLOCK=$(cat <<'EOF'
-# ---- zellij autostart (setup-dev-terminal.sh) ----
-export ZELLIJ_AUTOSTART=1
-if [[ -z "$ZELLIJ" && "$ZELLIJ_AUTOSTART" == "1" && "$TERM_PROGRAM" == "ghostty" && $- == *i* ]]; then
-  command -v zellij >/dev/null 2>&1 && exec zellij attach --create
 fi
+
+# ---------- 4. zshrc 追加 herdr 自动启动 (幂等) ----------
+if [[ "$INSTALL_HERDR" == "1" && "$HERDR_AUTOSTART" == "1" ]]; then
+ZSHRC_BLOCK=$(cat <<'EOF'
+# ---- herdr autostart (setup-dev-terminal.sh) ----
+export HERDR_AUTOSTART=1
+if [[ -z "${HERDR_ENV:-}" && -z "${ZELLIJ:-}" && "$HERDR_AUTOSTART" == "1" && "$TERM_PROGRAM" == "ghostty" && $- == *i* ]]; then
+  command -v herdr >/dev/null 2>&1 && exec herdr
+fi
+# ---- end herdr autostart ----
 EOF
 )
-ZSHRC_BLOCK="${ZSHRC_BLOCK//ZELLIJ_AUTOSTART=1/ZELLIJ_AUTOSTART=$ZELLIJ_AUTOSTART}"
-if grep -qF "$ZELLIJ_MARKER" "$ZSHRC" 2>/dev/null; then
-  info "zshrc 已包含 zellij autostart, 跳过"
+ZSHRC_BLOCK="${ZSHRC_BLOCK//HERDR_AUTOSTART=1/HERDR_AUTOSTART=$HERDR_AUTOSTART}"
+if grep -qF "$HERDR_MARKER" "$ZSHRC" 2>/dev/null; then
+  info "zshrc 已包含 herdr autostart, 跳过"
 else
   printf '\n%s\n' "$ZSHRC_BLOCK" >> "$ZSHRC"
-  info "已追加 zellij autostart 到 $ZSHRC"
+  info "已追加 herdr autostart 到 $ZSHRC"
 fi
 fi
 
@@ -566,9 +618,19 @@ if [[ "$INSTALL_GHOSTTY" == "1" ]]; then
   fi
 fi
 
+if [[ "$INSTALL_HERDR" == "1" ]]; then
+  if command -v herdr >/dev/null 2>&1 && herdr config check >/dev/null 2>&1; then
+    info "herdr 配置校验通过"
+  elif command -v herdr >/dev/null 2>&1; then
+    warn "herdr 配置校验失败, 请手动检查 $HERDR_CONFIG"
+  else
+    warn "未找到 herdr 命令, 请新开终端后重试, 或手动运行: curl -fsSL https://herdr.dev/install.sh | sh"
+  fi
+fi
+
 echo
-info "全部完成! 打开 Ghostty 即自动进入 zellij (Spotlight 搜 Ghostty)"
-info "退出 zellij: Ctrl+o 然后 d(分离)/x(退出)"
-info "关闭自动启动: 改 $ZSHRC 中 ZELLIJ_AUTOSTART=0"
+info "全部完成! 打开 Ghostty 即自动进入 herdr (Spotlight 搜 Ghostty)"
+info "退出 herdr: Ctrl+b 然后 q(分离/回到普通 shell)"
+info "关闭自动启动: 改 $ZSHRC 中 HERDR_AUTOSTART=0"
 info "zsh 插件需新开终端生效; 若默认 shell 仍是旧 zsh, 可运行: chsh -s \$(which zsh)"
 info "nvm 环境在新终端生效 (nvm use $NODE_VERSION); oh-my-pi (omp) 运行 omp 开始使用"
